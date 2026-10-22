@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Whale Cove - Persistent 3D Sandbox</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #020712;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+        #webgl-container {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        #ui-wrapper {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+        }
+        #toggle-ui-btn {
+            background: rgba(10, 25, 47, 0.92);
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            margin-bottom: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        #toggle-ui-btn:hover { background: rgba(15, 35, 65, 0.95); }
+        #ui {
+            background: rgba(10, 25, 47, 0.92);
+            color: white;
+            padding: 18px 22px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            width: 290px;
+            pointer-events: auto;
+            display: block;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        #food-bar {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(10, 25, 47, 0.92);
+            color: white;
+            padding: 14px 18px;
+            border-radius: 12px;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            width: 210px;
+            pointer-events: auto;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        h1 { font-size: 1.2rem; margin: 0 0 2px 0; color: #38bdf8; }
+        h2 { font-size: 0.95rem; margin: 0; color: #38bdf8; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 4px; }
+        p.subtitle { font-size: 0.8rem; margin: 0 0 14px 0; color: #94a3b8; }
+        .upload-section { margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.15); }
+        .upload-section label { font-size: 0.8rem; color: #cbd5e1; display: block; margin-bottom: 4px; }
+        .upload-section input[type="file"] { width: 100%; font-size: 0.75rem; color: #94a3b8; background: rgba(255, 255, 255, 0.05); padding: 5px; border-radius: 6px; border: 1px dashed rgba(255, 255, 255, 0.3); cursor: pointer; box-sizing: border-box; }
+        .control { margin-bottom: 10px; }
+        .control label { display: flex; justify-content: space-between; font-size: 0.8rem; color: #cbd5e1; margin-bottom: 4px; }
+        .control input[type="range"] { width: 100%; accent-color: #38bdf8; }
+        .name-box { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.15); }
+        .name-box label { font-size: 0.8rem; color: #cbd5e1; display: block; margin-bottom: 6px; }
+        .input-group { display: flex; gap: 6px; }
+        .input-group input[type="text"] { flex: 1; padding: 6px 10px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.3); background: rgba(255, 255, 255, 0.1); color: white; font-size: 0.85rem; outline: none; }
+        .input-group button, .reset-btn { padding: 6px 12px; background: #0284c7; border: none; border-radius: 6px; color: white; font-weight: 600; font-size: 0.8rem; cursor: pointer; }
+        .input-group button:hover { background: #0369a1; }
+        .reset-btn { background: #e11d48; margin-top: 10px; width: 100%; }
+        .reset-btn:hover { background: #be123c; }
+        #status-msg, #fish-status-msg, #floor-status-msg { font-size: 0.75rem; color: #38bdf8; margin-top: 4px; font-style: italic; }
+        
+        #whale-bubble {
+            position: absolute;
+            display: none;
+            background: rgba(255, 255, 255, 0.95);
+            color: #0f172a;
+            padding: 10px 14px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            font-weight: 600;
+            font-size: 0.85rem;
+            z-index: 20;
+            transform: translate(-50%, -100%);
+            pointer-events: auto;
+            text-align: center;
+        }
+        #whale-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 8px 8px 0;
+            border-style: solid;
+            border-color: rgba(255, 255, 255, 0.95) transparent;
+        }
+        .bubble-btn {
+            margin-top: 6px;
+            background: #0284c7;
+            color: white;
+            border: none;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 0.75rem;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 4px;
+        }
+        .bubble-btn:disabled { background: #94a3b8; cursor: not-allowed; }
+        .hint-overlay { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(10, 25, 47, 0.75); color: #94a3b8; padding: 8px 16px; border-radius: 20px; font-size: 0.8rem; border: 1px solid rgba(255, 255, 255, 0.1); pointer-events: none; }
+    </style>
+</head>
+<body>
+
+    <div id="ui-wrapper">
+        <button id="toggle-ui-btn">👁️ Toggle Controls Menu</button>
+        <div id="ui">
+            <h1 id="whale-title">Oreo</h1>
+            <p class="subtitle">Whale Cove 3D Sandbox</p>
+
+            <div class="upload-section">
+                <label for="model-upload">Main Creature (.GLB):</label>
+                <input type="file" id="model-upload" accept=".glb,.gltf">
+                <div id="status-msg">Click fish/kelp to collect treats!</div>
+            </div>
+
+            <div class="upload-section">
+                <label for="fish-upload">Custom Fish Model (.GLB):</label>
+                <input type="file" id="fish-upload" accept=".glb,.gltf">
+                <div id="fish-status-msg">Active school: 3D Minnows</div>
+            </div>
+
+            <div class="upload-section">
+                <label for="floor-upload">Seafloor / Sand Model (.GLB):</label>
+                <input type="file" id="floor-upload" accept=".glb,.gltf">
+                <div id="floor-status-msg">Active floor: Procedural Sand Bed</div>
+            </div>
+
+            <div class="control">
+                <label>Swim Speed: <span id="speed-txt">0.5x</span></label>
+                <input type="range" id="speed-slider" min="0.1" max="1.5" step="0.1" value="0.5">
+            </div>
+
+            <div class="name-box">
+                <label for="name-input">Creature Name:</label>
+                <div class="input-group">
+                    <input type="text" id="name-input" placeholder="Enter name..." value="Oreo">
+                    <button id="save-name-btn">Save</button>
+                </div>
+                <button class="reset-btn" id="reset-models-btn">🗑️ Reset Saved Models</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="food-bar">
+        <h2>Inventory</h2>
+        <div style="display: flex; justify-content: space-between; font-size: 0.85rem;">
+            <span>🐟 Fish Treats:</span>
+            <strong id="treats-count">1</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 0.85rem;">
+            <span>🌿 Kelp Snacks:</span>
+            <strong id="kelp-count">2</strong>
+        </div>
+    </div>
+
+    <div id="whale-bubble">
+        <span id="bubble-text">Hungry... 🐟</span>
+        <button class="bubble-btn" id="bubble-feed-fish" disabled>Feed Fish Treat 🐟</button>
+        <button class="bubble-btn" id="bubble-feed-kelp" style="background:#15803d;" disabled>Feed Kelp Snack 🌿</button>
+    </div>
+
+    <div class="hint-overlay">💡 Click fish or kelp to collect • Models save automatically on refresh!</div>
+
+    <div id="webgl-container"></div>
+
+    <!-- THREE.JS & LOADERS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+    <script>
+        // INDEXEDDB STORAGE MANAGER FOR PERSISTENT 3D MODELS
+        const DB_NAME = 'WhaleCoveDB_v5';
+        const STORE_NAME = 'ModelsStore';
+
+        function openDB() {
+            return new Promise((resolve, reject) => {
+                try {
+                    const request = indexedDB.open(DB_NAME, 1);
+                    request.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains(STORE_NAME)) {
+                            db.createObjectStore(STORE_NAME);
+                        }
+                    };
+                    request.onsuccess = (e) => resolve(e.target.result);
+                    request.onerror = (e) => reject(e.target.error);
+                } catch (err) { reject(err); }
+            });
+        }
+
+        async function saveModelToDB(key, arrayBuffer) {
+            try {
+                const db = await openDB();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(STORE_NAME, 'readwrite');
+                    const store = tx.objectStore(STORE_NAME);
+                    store.put(arrayBuffer, key);
+                    tx.oncomplete = () => resolve();
+                    tx.onerror = (e) => reject(e.target.error);
+                });
+            } catch (e) { console.warn('IndexedDB save skipped:', e); }
+        }
+
+        async function getModelFromDB(key) {
+            try {
+                const db = await openDB();
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(STORE_NAME, 'readonly');
+                    const store = tx.objectStore(STORE_NAME);
+                    const request = store.get(key);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = (e) => reject(e.target.error);
+                });
+            } catch (e) { console.warn('IndexedDB read skipped:', e); return null; }
+        }
+
+        async function clearDBModels() {
+            try {
+                const db = await openDB();
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                tx.objectStore(STORE_NAME).clear();
+            } catch (e) { console.warn('IndexedDB clear skipped:', e); }
+        }
+
+        // 1. SCENE SETUP & UNDERWATER FOG
+        const container = document.getElementById('webgl-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x020f24);
+        scene.fog = new THREE.FogExp2(0x020f24, 0.015);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 4, 22);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        container.appendChild(renderer.domElement);
+
+        // 2. CONTROLS & LIGHTS
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.target.set(0, -1, 0);
+
+        const ambientLight = new THREE.AmbientLight(0x60a0c0, 2.8);
+        scene.add(ambientLight);
+
+        const sunLight = new THREE.DirectionalLight(0xe0f2fe, 3.5);
+        sunLight.position.set(10, 40, 15);
+        scene.add(sunLight);
+
+        // 3. SEAFLOOR / SAND BED GROUP
+        const floorGroup = new THREE.Group();
+        scene.add(floorGroup);
+
+        function buildProceduralSand() {
+            while(floorGroup.children.length > 0) floorGroup.remove(floorGroup.children[0]);
+            
+            const sandCanvas = document.createElement('canvas');
+            sandCanvas.width = 256;
+            sandCanvas.height = 256;
+            const ctx = sandCanvas.getContext('2d');
+            ctx.fillStyle = '#3a6351';
+            ctx.fillRect(0, 0, 256, 256);
+
+            for (let i = 0; i < 15000; i++) {
+                ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)';
+                ctx.fillRect(Math.random() * 256, Math.random() * 256, 2, 2);
+            }
+
+            const sandTex = new THREE.CanvasTexture(sandCanvas);
+            sandTex.wrapS = THREE.RepeatWrapping;
+            sandTex.wrapT = THREE.RepeatWrapping;
+            sandTex.repeat.set(8, 8);
+
+            const slabGeo = new THREE.BoxGeometry(80, 2.0, 80, 16, 1, 16);
+            const slabMat = new THREE.MeshStandardMaterial({
+                color: 0x3d705c,
+                roughness: 0.75,
+                bumpMap: sandTex,
+                bumpScale: 0.2
+            });
+
+            const slabMesh = new THREE.Mesh(slabGeo, slabMat);
+            slabMesh.position.set(0, -5.0, 0);
+            floorGroup.add(slabMesh);
+        }
+        buildProceduralSand();
+
+        // 4. PARTICLES IN WATER
+        const particleGeo = new THREE.BufferGeometry();
+        const particleCount = 150;
+        const particlePositions = new Float32Array(particleCount * 3);
+        for(let i=0; i<particleCount*3; i+=3) {
+            particlePositions[i] = (Math.random() - 0.5) * 50;
+            particlePositions[i+1] = -4 + Math.random() * 15;
+            particlePositions[i+2] = (Math.random() - 0.5) * 50;
+        }
+        particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+        const particleMat = new THREE.PointsMaterial({ color: 0x38bdf8, size: 0.12, transparent: true, opacity: 0.4 });
+        const particles = new THREE.Points(particleGeo, particleMat);
+        scene.add(particles);
+
+        // 5. MAIN CREATURE
+        const activeCreature = new THREE.Group();
+        scene.add(activeCreature);
+
+        function buildDefaultCreatureMesh() {
+            while(activeCreature.children.length > 0) activeCreature.remove(activeCreature.children[0]);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.3 });
+            const bodyGeo = new THREE.ConeGeometry(1.2, 4.0, 16);
+            bodyGeo.rotateX(Math.PI / 2);
+            const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+            activeCreature.add(bodyMesh);
+        }
+        buildDefaultCreatureMesh();
+
+        // 6. FISH & KELP ECOSYSTEM
+        const fishList = [];
+        const fishGroup = new THREE.Group();
+        scene.add(fishGroup);
+
+        const kelpList = [];
+        const kelpGroup = new THREE.Group();
+        scene.add(kelpGroup);
+
+        function createDefaultFishMesh() {
+            const fishContainer = new THREE.Group();
+            const bGeo = new THREE.SphereGeometry(0.35, 12, 10);
+            bGeo.scale(0.5, 1.0, 1.8);
+            const bMat = new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.4 });
+            fishContainer.add(new THREE.Mesh(bGeo, bMat));
+
+            const tGeo = new THREE.ConeGeometry(0.3, 0.5, 8);
+            tGeo.rotateX(Math.PI / 2);
+            const tMat = new THREE.MeshStandardMaterial({ color: 0xeab308, roughness: 0.4 });
+            const tMesh = new THREE.Mesh(tGeo, tMat);
+            tMesh.position.set(0, 0, -0.8);
+            fishContainer.add(tMesh);
+            return fishContainer;
+        }
+
+        let fishTemplate = createDefaultFishMesh();
+
+        function spawnSingleFish() {
+            const fish = fishTemplate.clone();
+            fish.position.set((Math.random() - 0.5) * 26, -2 + Math.random() * 5, (Math.random() - 0.5) * 26);
+            fish.userData = { speed: 1.2 + Math.random() * 1.5, angle: Math.random() * Math.PI * 2 };
+            fishGroup.add(fish);
+            fishList.push(fish);
+        }
+
+        function spawnFishSchool() {
+            while(fishGroup.children.length > 0) fishGroup.remove(fishGroup.children[0]);
+            fishList.length = 0;
+            for (let i = 0; i < 12; i++) spawnSingleFish();
+        }
+        spawnFishSchool();
+
+        function spawnSingleKelp() {
+            const kelpCluster = new THREE.Group();
+            const height = 4 + Math.random() * 3;
+            const segments = 6;
+            const points = [];
+            for (let i = 0; i <= segments; i++) {
+                const y = (i / segments) * height;
+                const x = Math.sin(i * 0.8) * 0.3;
+                const z = Math.cos(i * 0.8) * 0.3;
+                points.push(new THREE.Vector3(x, y, z));
+            }
+            const curve = new THREE.CatmullRomCurve3(points);
+            const stemGeo = new THREE.TubeGeometry(curve, 12, 0.08, 6, false);
+            const kelpMat = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.6, side: THREE.DoubleSide });
+            const stemMesh = new THREE.Mesh(stemGeo, kelpMat);
+            kelpCluster.add(stemMesh);
+
+            const leafGeo = new THREE.PlaneGeometry(0.35, 1.2);
+            leafGeo.translate(0, 0.6, 0);
+
+            for (let i = 1; i < segments; i++) {
+                const pos = curve.getPoint(i / segments);
+                for (let side = -1; side <= 1; side += 2) {
+                    const leaf = new THREE.Mesh(leafGeo, kelpMat);
+                    leaf.position.copy(pos);
+                    leaf.rotation.y = Math.random() * Math.PI;
+                    leaf.rotation.z = side * (0.6 + Math.random() * 0.4);
+                    kelpCluster.add(leaf);
+                }
+            }
+
+            kelpCluster.position.set((Math.random() - 0.5) * 32, -4, (Math.random() - 0.5) * 32);
+            kelpCluster.userData = { phase: Math.random() * Math.PI * 2, speed: 1.2 + Math.random() * 0.8 };
+            kelpGroup.add(kelpCluster);
+            kelpList.push(kelpCluster);
+        }
+
+        for (let i = 0; i < 12; i++) spawnSingleKelp();
+
+        // 7. SAVED NAME & NAMEPLATE
+        let savedName = localStorage.getItem('whale_cove_name') || 'Oreo';
+        document.getElementById('whale-title').innerText = savedName;
+        document.getElementById('name-input').value = savedName;
+
+        let nameSprite;
+        function createNameplate(text) {
+            if (nameSprite) activeCreature.remove(nameSprite);
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 128;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = 'rgba(10, 25, 47, 0.85)';
+            ctx.fillRect(16, 16, 480, 96);
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(16, 16, 480, 96);
+            ctx.font = 'Bold 42px sans-serif';
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, 256, 64);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true });
+            nameSprite = new THREE.Sprite(spriteMat);
+            nameSprite.scale.set(3.5, 0.875, 1);
+            nameSprite.position.set(0, 2.5, 0);
+            activeCreature.add(nameSprite);
+        }
+        createNameplate(savedName);
+
+        document.getElementById('save-name-btn').addEventListener('click', () => {
+            const newName = document.getElementById('name-input').value.trim() || 'Oreo';
+            localStorage.setItem('whale_cove_name', newName);
+            savedName = newName;
+            document.getElementById('whale-title').innerText = savedName;
+            createNameplate(savedName);
+            document.getElementById('status-msg').innerText = 'Name saved!';
+        });
+
+        // 8. TOGGLE UI
+        const uiPanel = document.getElementById('ui');
+        document.getElementById('toggle-ui-btn').addEventListener('click', () => {
+            uiPanel.style.display = uiPanel.style.display === 'none' ? 'block' : 'none';
+        });
+
+        // 9. SAFE GLB LOADER & AUTOMATIC SCAN ORIENTATION FIX
+        const loader = new THREE.GLTFLoader();
+
+        function setupCustomSeafloor(floorModel) {
+            try {
+                while(floorGroup.children.length > 0) floorGroup.remove(floorGroup.children[0]);
+                
+                const cleanModel = new THREE.Group();
+                floorModel.traverse((child) => {
+                    if (child.isMesh) {
+                        const m = child.clone();
+                        m.material.side = THREE.DoubleSide;
+                        cleanModel.add(m);
+                    }
+                });
+
+                let box = new THREE.Box3().setFromObject(cleanModel);
+                let size = box.getSize(new THREE.Vector3());
+
+                if (size.y > size.x || size.y > size.z) {
+                    cleanModel.rotation.x = Math.PI / 2;
+                }
+
+                box.setFromObject(cleanModel);
+                size = box.getSize(new THREE.Vector3());
+                let center = box.getCenter(new THREE.Vector3());
+
+                const maxDimension = Math.max(size.x, size.z) || 1;
+                const targetScale = 75.0 / maxDimension;
+                cleanModel.scale.setScalar(targetScale);
+
+                box.setFromObject(cleanModel);
+                cleanModel.position.x = -center.x * targetScale;
+                cleanModel.position.z = -center.z * targetScale;
+                cleanModel.position.y = -5.0 - box.min.y;
+
+                floorGroup.add(cleanModel);
+                document.getElementById('floor-status-msg').innerText = 'Active floor: Custom Beach Scan';
+            } catch (err) {
+                console.error("Seafloor setup warning:", err);
+                buildProceduralSand();
+            }
+        }
+
+        async function loadSavedModels() {
+            try {
+                const creatureBuffer = await getModelFromDB('main_creature_model');
+                if (creatureBuffer) {
+                    loader.parse(creatureBuffer, '', (gltf) => {
+                        while(activeCreature.children.length > 0) activeCreature.remove(activeCreature.children[0]);
+                        const model = gltf.scene;
+                        const box = new THREE.Box3().setFromObject(model);
+                        const size = box.getSize(new THREE.Vector3());
+                        model.scale.setScalar(4.0 / (Math.max(size.x, size.y, size.z) || 1));
+                        activeCreature.add(model);
+                        createNameplate(savedName);
+                        document.getElementById('status-msg').innerText = 'Saved creature restored!';
+                    }, (e) => console.warn(e));
+                }
+
+                const fishBuffer = await getModelFromDB('fish_school_model');
+                if (fishBuffer) {
+                    loader.parse(fishBuffer, '', (gltf) => {
+                        const fishModel = gltf.scene;
+                        const box = new THREE.Box3().setFromObject(fishModel);
+                        const size = box.getSize(new THREE.Vector3());
+                        fishModel.scale.setScalar(1.0 / (Math.max(size.x, size.y, size.z) || 1));
+                        fishTemplate = fishModel;
+                        spawnFishSchool();
+                        document.getElementById('fish-status-msg').innerText = 'Saved fish restored!';
+                    }, (e) => console.warn(e));
+                }
+
+                const floorBuffer = await getModelFromDB('seafloor_model');
+                if (floorBuffer) {
+                    loader.parse(floorBuffer, '', (gltf) => {
+                        setupCustomSeafloor(gltf.scene);
+                        document.getElementById('floor-status-msg').innerText = 'Saved sand floor restored!';
+                    }, (e) => console.warn(e));
+                }
+            } catch (e) { console.log('Error restoring models:', e); }
+        }
+        loadSavedModels();
+
+        // File Input Handlers
+        document.getElementById('model-upload').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const arrayBuffer = event.target.result;
+                await saveModelToDB('main_creature_model', arrayBuffer);
+
+                loader.parse(arrayBuffer, '', (gltf) => {
+                    while(activeCreature.children.length > 0) activeCreature.remove(activeCreature.children[0]);
+                    const model = gltf.scene;
+                    const box = new THREE.Box3().setFromObject(model);
+                    const size = box.getSize(new THREE.Vector3());
+                    model.scale.setScalar(4.0 / (Math.max(size.x, size.y, size.z) || 1));
+                    activeCreature.add(model);
+                    createNameplate(savedName);
+                    document.getElementById('status-msg').innerText = 'Creature saved permanently!';
+                });
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        document.getElementById('fish-upload').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const arrayBuffer = event.target.result;
+                await saveModelToDB('fish_school_model', arrayBuffer);
+
+                loader.parse(arrayBuffer, '', (gltf) => {
+                    const fishModel = gltf.scene;
+                    const box = new THREE.Box3().setFromObject(fishModel);
+                    const size = box.getSize(new THREE.Vector3());
+                    fishModel.scale.setScalar(1.0 / (Math.max(size.x, size.y, size.z) || 1));
+                    fishTemplate = fishModel;
+                    spawnFishSchool();
+                    document.getElementById('fish-status-msg').innerText = 'Fish saved permanently!';
+                });
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        document.getElementById('floor-upload').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const arrayBuffer = event.target.result;
+                await saveModelToDB('seafloor_model', arrayBuffer);
+
+                loader.parse(arrayBuffer, '', (gltf) => {
+                    setupCustomSeafloor(gltf.scene);
+                    document.getElementById('floor-status-msg').innerText = 'Sand floor saved permanently!';
+                });
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        document.getElementById('reset-models-btn').addEventListener('click', async () => {
+            await clearDBModels();
+            buildDefaultCreatureMesh();
+            fishTemplate = createDefaultFishMesh();
+            spawnFishSchool();
+            buildProceduralSand();
+            createNameplate(savedName);
+            document.getElementById('status-msg').innerText = 'Models reset to default.';
+            document.getElementById('fish-status-msg').innerText = 'Active school: 3D Minnows';
+            document.getElementById('floor-status-msg').innerText = 'Active floor: Procedural Sand Bed';
+        });
+
+        // 10. TREATS & FEEDING SYSTEM
+        let treatsCount = 1;
+        let kelpCount = 2;
+        let activeTreat = null;
+
+        function updateInventoryUI() {
+            document.getElementById('treats-count').innerText = treatsCount;
+            document.getElementById('kelp-count').innerText = kelpCount;
+            document.getElementById('bubble-feed-fish').disabled = treatsCount <= 0;
+            document.getElementById('bubble-feed-kelp').disabled = kelpCount <= 0;
+        }
+
+        function dropTreat(type) {
+            if (type === 'fish' && treatsCount <= 0) return;
+            if (type === 'kelp' && kelpCount <= 0) return;
+
+            if (type === 'fish') treatsCount--;
+            if (type === 'kelp') kelpCount--;
+            updateInventoryUI();
+
+            if (activeTreat) scene.remove(activeTreat);
+            const treatGeo = type === 'fish' ? new THREE.DodecahedronGeometry(0.3) : new THREE.CylinderGeometry(0.1, 0.1, 0.8, 6);
+            const treatMat = new THREE.MeshStandardMaterial({ color: type === 'fish' ? 0xef4444 : 0x22c55e });
+            activeTreat = new THREE.Mesh(treatGeo, treatMat);
+            activeTreat.position.copy(activeCreature.position).add(new THREE.Vector3((Math.random() - 0.5) * 4, 1, (Math.random() - 0.5) * 4));
+            scene.add(activeTreat);
+
+            document.getElementById('status-msg').innerText = `${savedName} is swimming to eat! 😋`;
+            targetPos.copy(activeTreat.position);
+            document.getElementById('whale-bubble').style.display = 'none';
+        }
+
+        document.getElementById('bubble-feed-fish').addEventListener('click', () => dropTreat('fish'));
+        document.getElementById('bubble-feed-kelp').addEventListener('click', () => dropTreat('kelp'));
+
+        // Raycasting for Interactivity
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        window.addEventListener('click', (e) => {
+            if (e.target.closest('#ui-wrapper') || e.target.closest('#food-bar') || e.target.closest('#whale-bubble')) return;
+
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+
+            // Check Creature Click
+            if (raycaster.intersectObject(activeCreature, true).length > 0) {
+                const bubble = document.getElementById('whale-bubble');
+                document.getElementById('bubble-text').innerText = `I'm ${savedName}! Feed me?`;
+                bubble.style.display = 'block';
+                updateInventoryUI();
+                return;
+            }
+
+            // Check Fish Click
+            const fishHits = raycaster.intersectObjects(fishGroup.children, true);
+            if (fishHits.length > 0) {
+                let clicked = fishHits[0].object;
+                while (clicked.parent && clicked.parent !== fishGroup) clicked = clicked.parent;
+                fishGroup.remove(clicked);
+                const idx = fishList.indexOf(clicked);
+                if (idx > -1) fishList.splice(idx, 1);
+                treatsCount++;
+                updateInventoryUI();
+                document.getElementById('status-msg').innerText = 'Collected 1x Fish Treat! (Respawns 10s)';
+                setTimeout(spawnSingleFish, 10000);
+                return;
+            }
+
+            // Check Kelp Click
+            const kelpHits = raycaster.intersectObjects(kelpGroup.children, true);
+            if (kelpHits.length > 0) {
+                let clickedKelp = kelpHits[0].object;
+                while (clickedKelp.parent && clickedKelp.parent !== kelpGroup) clickedKelp = clickedKelp.parent;
+                kelpGroup.remove(clickedKelp);
+                const idx = kelpList.indexOf(clickedKelp);
+                if (idx > -1) kelpList.splice(idx, 1);
+                kelpCount++;
+                updateInventoryUI();
+                document.getElementById('status-msg').innerText = 'Harvested 1x Kelp Snack! (Respawns 10s)';
+                setTimeout(spawnSingleKelp, 10000);
+                return;
+            }
+
+            document.getElementById('whale-bubble').style.display = 'none';
+        });
+
+        // 11. ANIMATION LOOP & WATER DYNAMICS
+        let swimSpeed = 0.5;
+        document.getElementById('speed-slider').addEventListener('input', (e) => {
+            swimSpeed = parseFloat(e.target.value);
+            document.getElementById('speed-txt').innerText = swimSpeed.toFixed(1) + 'x';
+        });
+
+        let targetPos = new THREE.Vector3(0, 0, 0);
+        function pickNewTarget() {
+            if (!activeTreat) {
+                targetPos.set((Math.random() - 0.5) * 20, -1 + Math.random() * 3, (Math.random() - 0.5) * 20);
+            }
+        }
+        pickNewTarget();
+
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+
+            const delta = clock.getDelta();
+            const time = clock.getElapsedTime();
+
+            sunLight.intensity = 3.2 + Math.sin(time * 2.0) * 0.4;
+
+            fishList.forEach(f => {
+                f.userData.angle += delta * 0.5;
+                f.position.x += Math.cos(f.userData.angle) * f.userData.speed * delta;
+                f.position.z += Math.sin(f.userData.angle) * f.userData.speed * delta;
+                f.rotation.y = -f.userData.angle + Math.PI / 2;
+            });
+
+            kelpList.forEach(k => {
+                const wave = Math.sin(time * k.userData.speed + k.userData.phase);
+                k.rotation.z = wave * 0.15;
+            });
+
+            if (activeTreat) {
+                if (activeCreature.position.distanceTo(activeTreat.position) < 2.0) {
+                    scene.remove(activeTreat);
+                    activeTreat = null;
+                    document.getElementById('status-msg').innerText = `${savedName} ate the treat! Yummy 💖`;
+                    pickNewTarget();
+                }
+            } else if (activeCreature.position.distanceTo(targetPos) < 2.0) {
+                pickNewTarget();
+            }
+
+            const dir = new THREE.Vector3().subVectors(targetPos, activeCreature.position).normalize();
+            const targetAngle = Math.atan2(dir.x, dir.z);
+            let diff = targetAngle - activeCreature.rotation.y;
+            diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+            activeCreature.rotation.y += diff * delta * 1.5;
+
+            const moveSpeed = swimSpeed * 2.5 * delta;
+            activeCreature.position.x += Math.sin(activeCreature.rotation.y) * moveSpeed;
+            activeCreature.position.z += Math.cos(activeCreature.rotation.y) * moveSpeed;
+            activeCreature.position.y += (targetPos.y + Math.sin(time * 1.5) * 0.3 - activeCreature.position.y) * delta * 0.8;
+
+            const bubble = document.getElementById('whale-bubble');
+            if (bubble.style.display === 'block') {
+                const tempV = new THREE.Vector3();
+                tempV.copy(activeCreature.position);
+                tempV.y += 2.2;
+                tempV.project(camera);
+
+                const x = (tempV.x * .5 + .5) * window.innerWidth;
+                const y = (-(tempV.y * .5) + .5) * window.innerHeight;
+
+                bubble.style.left = `${x}px`;
+                bubble.style.top = `${y}px`;
+            }
+
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
